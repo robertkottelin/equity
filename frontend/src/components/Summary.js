@@ -1,7 +1,8 @@
+// components/Summary.js
 import React from 'react';
 import './Summary.css';
 
-const Summary = ({ totalValue, sectorSummary }) => {
+const Summary = ({ totalValue, sectorSummary, isSubscribed }) => {
   // Format currency values
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
@@ -25,9 +26,10 @@ const Summary = ({ totalValue, sectorSummary }) => {
       <h2>Portfolio Summary</h2>
       <div className="summary-content">
         <div className="total-summary">
-          <div className="summary-card">
+          <div className={`summary-card ${isSubscribed ? 'premium-card' : ''}`}>
             <h3>Total Portfolio Value</h3>
             <p className="total-value">{formatCurrency(totalValue)}</p>
+            {isSubscribed && <span className="premium-badge">PREMIUM</span>}
           </div>
         </div>
 
@@ -58,6 +60,27 @@ const Summary = ({ totalValue, sectorSummary }) => {
             </table>
           )}
         </div>
+        
+        {isSubscribed && (
+          <div className="analytics-summary">
+            <h3>Advanced Analytics</h3>
+            <div className="analytics-grid">
+              <div className="analytics-card">
+                <h4>Portfolio Risk</h4>
+                <div className="risk-meter" data-risk="medium">
+                  <div className="risk-level"></div>
+                </div>
+                <p>Medium</p>
+              </div>
+              <div className="analytics-card">
+                <h4>Diversification Score</h4>
+                <p className="analytics-value">
+                  {(Object.keys(sectorSummary).length / 4 * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

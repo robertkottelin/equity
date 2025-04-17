@@ -29,9 +29,8 @@ const AssetForm = ({ onAddAsset, onCancel, editingAsset }) => {
     const { name, value } = e.target;
     let processedValue = value;
     
-    // Convert numeric inputs to numbers
-    if (
-      [
+    // Convert numeric inputs to numbers or null for empty strings
+    if ([
         'price',
         'acquisitionPrice',
         'amount',
@@ -40,15 +39,14 @@ const AssetForm = ({ onAddAsset, onCancel, editingAsset }) => {
         'growth1y',
         'growth3y',
         'growth5y',
-      ].includes(name)
-    ) {
-      // Allow empty string for optional fields
-      processedValue = value === '' ? '' : Number(value);
+    ].includes(name)) {
+        // Convert empty string to null for optional fields
+        processedValue = value === '' ? null : Number(value);
     }
     
     setFormData({
-      ...formData,
-      [name]: processedValue,
+        ...formData,
+        [name]: processedValue,
     });
   };
 

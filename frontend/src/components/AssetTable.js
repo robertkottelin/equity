@@ -1,7 +1,8 @@
+// components/AssetTable.js
 import React from 'react';
 import './AssetTable.css';
 
-const AssetTable = ({ assets, onEdit, onDelete }) => {
+const AssetTable = ({ assets, onEdit, onDelete, isSubscribed }) => {
   // Format currency values
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
@@ -46,13 +47,17 @@ const AssetTable = ({ assets, onEdit, onDelete }) => {
           </thead>
           <tbody>
             {assets.map((asset, index) => (
-              <tr key={index}>
+              <tr key={index} className={isSubscribed ? "premium-row" : ""}>
                 <td>{asset.sectorType}</td>
                 <td>{asset.name}</td>
                 <td>{formatCurrency(asset.price)}</td>
                 <td>{formatCurrency(asset.acquisitionPrice)}</td>
-                <td>{formatCurrency(asset.profitLoss)}</td>
-                <td>{formatPercentage(asset.profitLossPercentage)}</td>
+                <td className={asset.profitLoss >= 0 ? "positive" : "negative"}>
+                  {formatCurrency(asset.profitLoss)}
+                </td>
+                <td className={asset.profitLossPercentage >= 0 ? "positive" : "negative"}>
+                  {formatPercentage(asset.profitLossPercentage)}
+                </td>
                 <td>{asset.amount}</td>
                 <td>{formatCurrency(asset.value)}</td>
                 <td>{asset.pe || 'N/A'}</td>
@@ -78,6 +83,11 @@ const AssetTable = ({ assets, onEdit, onDelete }) => {
             ))}
           </tbody>
         </table>
+      )}
+      {!isSubscribed && assets.length > 0 && (
+        <div className="subscription-upsell">
+          <p>Upgrade to premium for enhanced analytics and unlimited assets!</p>
+        </div>
       )}
     </div>
   );
