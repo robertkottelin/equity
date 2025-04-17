@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 from extensions import db
 from flask_jwt_extended import JWTManager
+import datetime
+import secrets
 
 # Load environment variables
 load_dotenv()
@@ -15,20 +17,32 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///equity.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# JWT Configuration
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'dev-jwt-secret-key-change-in-production')
-app.config['JWT_COOKIE_SECURE'] = False  # Use True in production
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 30 * 24 * 60 * 60  # 30 days
+# Enhanced JWT Configuration
+# Generate a strong random secret key if one isn't provided
+if not os.getenv('JWT_SECRET_KEY'):
+    print("WARNING: Using auto-generated JWT secret key. This is insecure for production.")
+jwt_secret = os.getenv('JWT_SECRET_KEY', secrets.token_hex(32))
+app.config['JWT_SECRET_KEY'] = jwt_secret
+app.config['JWT_COOKIE_SECURE'] = os.getenv('ENVIRONMENT', 'development') == 'production'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)  # Reduced from 30 days to 1 day
+app.config['JWT_COOKIE_CSRF_PROTECT'] = True
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax'  # Prevents CSRF
+app.config['JWT_BLACKLIST_ENABLED'] = True
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
 jwt = JWTManager(app)
 
 # Initialize extensions
 db.init_app(app)
 
-# CORS Configuration
-# CORS(app, supports_credentials=True)
-
-# Allow requests from frontend development server
-CORS(app, origins="*", supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
+# Secure CORS configuration
+# Instead of allowing all origins with "*", specify allowed origins
+allowed_origins = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS(app, 
+     origins=allowed_origins, 
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     max_age=86400)  # Cache preflight requests for 24 hours
 
 # Import models and blueprints
 from models.user import User, user_bp
@@ -46,6 +60,24 @@ def health_check():
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
+# Add security headers to all responses
+@app.after_request
+def add_security_headers(response):
+    # Prevent XSS attacks
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Content security policy
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    
+    # Add additional security headers
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    
+    return response
+
 # Create database tables before first request
 @app.before_first_request
 def create_tables():
@@ -57,4 +89,5 @@ if __name__ == '__main__':
         db.create_all()
     
     # Run the app
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.getenv('ENVIRONMENT', 'development') == 'development'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)

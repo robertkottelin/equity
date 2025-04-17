@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-
 // Validate JWT token format
 const isValidJWT = (token) => {
   if (!token) return false;
@@ -15,6 +14,11 @@ const isValidJWT = (token) => {
     const base64Url = tokenParts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const payload = JSON.parse(window.atob(base64));
+    
+    // Check token expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return false;
+    }
     
     return Boolean(payload);
   } catch (e) {
@@ -75,12 +79,14 @@ export const AuthProvider = ({ children }) => {
       // Validate token format before attempting to use it
       if (!state.token || !isValidJWT(state.token)) {
         localStorage.removeItem('access_token');
-        setState(prev => ({
-          ...prev,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false
-        }));
+        if (mounted) {
+          setState(prev => ({
+            ...prev,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false
+          }));
+        }
         return;
       }
       
@@ -136,15 +142,16 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (email, password) => {
     try {
-      console.log("Login attempt:", { email });
       setState(prev => ({ ...prev, isLoading: true }));
       const response = await axios.post(`${apiBaseUrl}/login`, { email, password });
-      console.log("Login response:", response.data);
       
       // Store token in localStorage
       if (response.data.token) {
         localStorage.setItem('access_token', response.data.token);
       }
+      
+      // Security fix: Clear any temporary data in localStorage
+      clearLocalStorageData();
       
       setState(prev => ({
         ...prev,
@@ -187,6 +194,9 @@ export const AuthProvider = ({ children }) => {
       if (response.data.token) {
         localStorage.setItem('access_token', response.data.token);
       }
+      
+      // Security fix: Clear any temporary data in localStorage
+      clearLocalStorageData();
       
       setState(prev => ({
         ...prev,
@@ -258,11 +268,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Security fix: Add helper function to clear all local storage data
+  const clearLocalStorageData = () => {
+    // Clear any potentially sensitive data from localStorage
+    localStorage.removeItem('assets');
+    
+    // Clean up any other application data
+    const keysToPreserve = ['access_token']; // Only keep the auth token
+    
+    Object.keys(localStorage).forEach(key => {
+      if (!keysToPreserve.includes(key)) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
   // Logout function
   const logout = async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       await axios.post(`${apiBaseUrl}/logout`);
+      
+      // Security fix: Clear all data from localStorage
+      clearLocalStorageData();
       
       // Remove token from localStorage
       localStorage.removeItem('access_token');
@@ -278,16 +306,20 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false,
-        error: error.response?.data?.error || "Logout failed"
-      }));
+      // Even if server logout fails, clear client-side auth state
+      clearLocalStorageData();
+      localStorage.removeItem('access_token');
       
-      return { 
-        success: false, 
-        error: error.response?.data?.error || "Logout failed" 
-      };
+      setState({
+        currentUser: null,
+        isAuthenticated: false,
+        isSubscribed: false,
+        isLoading: false,
+        error: null,
+        token: null
+      });
+      
+      return { success: true };
     }
   };
 

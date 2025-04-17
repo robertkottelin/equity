@@ -32,18 +32,12 @@ function App() {
           setAssets(fetchedAssets);
         } catch (error) {
           console.error("Error loading assets:", error);
-          // Fallback to local assets if API fails
-          const storedAssets = localStorage.getItem('assets');
-          if (storedAssets) {
-            setAssets(JSON.parse(storedAssets));
-          }
+          // Security fix: No fallback to localStorage for authenticated users
+          setAssets([]);
         }
       } else {
-        // For non-authenticated users, load from localStorage
-        const storedAssets = localStorage.getItem('assets');
-        if (storedAssets) {
-          setAssets(JSON.parse(storedAssets));
-        }
+        // Security fix: Non-authenticated users start with empty assets
+        setAssets([]);
       }
       setIsLoading(false);
     };
@@ -68,38 +62,33 @@ function App() {
         }
       } catch (error) {
         console.error("Error saving asset:", error);
-        // Fallback to local storage
-        fallbackSaveAsset(asset);
+        // Security fix: Remove fallback to localStorage, show error instead
+        alert("Unable to save asset. Please try again.");
       }
     } else {
-      // For non-authenticated users, save to localStorage
-      fallbackSaveAsset(asset);
+      // Security fix: For unauthenticated users, keep assets in memory only
+      // and prompt for authentication
+      if (editingAsset !== null) {
+        const updatedAssets = assets.map((item, index) => 
+          index === editingAsset ? asset : item
+        );
+        setAssets(updatedAssets);
+      } else {
+        const newAsset = {
+          ...asset,
+          id: `temp_${Date.now()}` // Temporary ID
+        };
+        setAssets([...assets, newAsset]);
+      }
+      
+      // Prompt user to login to save their data
+      setTimeout(() => {
+        alert("Your changes will be lost when you close the browser. Please login to save your data.");
+      }, 500);
     }
     
     setEditingAsset(null);
     setIsAddingAsset(false);
-  };
-  
-  // Fallback function to save assets locally when API fails
-  const fallbackSaveAsset = (asset) => {
-    let updatedAssets;
-    
-    if (editingAsset !== null) {
-      // Update existing asset
-      updatedAssets = assets.map((item, index) => 
-        index === editingAsset ? asset : item
-      );
-    } else {
-      // Add new asset with generated ID
-      const newAsset = {
-        ...asset,
-        id: Date.now() // Simple ID generation
-      };
-      updatedAssets = [...assets, newAsset];
-    }
-    
-    setAssets(updatedAssets);
-    localStorage.setItem('assets', JSON.stringify(updatedAssets));
   };
 
   // Start editing an asset
@@ -117,26 +106,21 @@ function App() {
         setAssets(assets.filter((_, i) => i !== index));
       } catch (error) {
         console.error("Error deleting asset:", error);
-        // Fallback to local deletion
-        fallbackDeleteAsset(index);
+        // Security fix: No fallback to localStorage, show error instead
+        alert("Unable to delete asset. Please try again.");
       }
     } else {
-      // For non-authenticated users, delete from localStorage
-      fallbackDeleteAsset(index);
+      // For non-authenticated users, just update in-memory state
+      const updatedAssets = assets.filter((_, i) => i !== index);
+      setAssets(updatedAssets);
     }
-  };
-  
-  // Fallback function to delete assets locally when API fails
-  const fallbackDeleteAsset = (index) => {
-    const updatedAssets = assets.filter((_, i) => i !== index);
-    setAssets(updatedAssets);
-    localStorage.setItem('assets', JSON.stringify(updatedAssets));
   };
   
   // Handle user logout
   const handleLogout = async () => {
     await logout();
-    // After logout, keep local data but clear remote reference
+    // Security fix: Reset assets to empty array after logout
+    setAssets([]);
   };
   
   // Handle subscription cancellation

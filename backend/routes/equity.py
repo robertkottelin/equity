@@ -3,18 +3,48 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models.user import User
 from models.asset import Asset
 from extensions import db
+import logging
+
+# Set up security logging
+logger = logging.getLogger('equity_security')
+logger.setLevel(logging.INFO)
 
 equity_bp = Blueprint('equity', __name__)
+
+def verify_user_ownership(user_id, asset_id=None):
+    """
+    Security helper to verify user owns the asset they're trying to access.
+    Returns (user, asset, error_response) tuple.
+    """
+    user = User.query.get(int(user_id))
+    
+    if not user:
+        logger.warning(f"User not found: {user_id}")
+        return None, None, (jsonify({"error": "User not found"}), 404)
+    
+    # If no asset_id, just return the user
+    if asset_id is None:
+        return user, None, None
+        
+    # Verify user owns the asset
+    asset = Asset.query.filter_by(id=asset_id, user_id=user.id).first()
+    
+    if not asset:
+        logger.warning(f"Unauthorized asset access attempt: User {user_id} tried to access asset {asset_id}")
+        return user, None, (jsonify({"error": "Asset not found or not owned by user"}), 404)
+        
+    return user, asset, None
 
 @equity_bp.route('/assets', methods=['GET'])
 @jwt_required()
 def get_assets():
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user, _, error = verify_user_ownership(user_id)
     
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    if error:
+        return error
     
+    # Query only assets belonging to the current user
     assets = Asset.query.filter_by(user_id=user.id).all()
     
     return jsonify({
@@ -25,12 +55,19 @@ def get_assets():
 @jwt_required()
 def add_asset():
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user, _, error = verify_user_ownership(user_id)
     
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    if error:
+        return error
     
     data = request.get_json()
+    
+    # Validate required fields
+    required_fields = ['sectorType', 'name', 'price', 'acquisitionPrice', 'amount', 'value', 
+                       'profitLoss', 'profitLossPercentage']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
     
     # Helper function to convert empty strings to None
     def convert_empty_to_none(value):
@@ -57,6 +94,8 @@ def add_asset():
     db.session.add(asset)
     db.session.commit()
     
+    logger.info(f"User {user.id} created new asset {asset.id}")
+    
     return jsonify({
         "success": True,
         "asset": asset.to_dict()
@@ -66,15 +105,10 @@ def add_asset():
 @jwt_required()
 def update_asset(asset_id):
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user, asset, error = verify_user_ownership(user_id, asset_id)
     
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    
-    asset = Asset.query.filter_by(id=asset_id, user_id=user.id).first()
-    
-    if not asset:
-        return jsonify({"error": "Asset not found or not owned by user"}), 404
+    if error:
+        return error
     
     data = request.get_json()
 
@@ -100,6 +134,8 @@ def update_asset(asset_id):
     
     db.session.commit()
     
+    logger.info(f"User {user.id} updated asset {asset.id}")
+    
     return jsonify({
         "success": True,
         "asset": asset.to_dict()
@@ -109,18 +145,15 @@ def update_asset(asset_id):
 @jwt_required()
 def delete_asset(asset_id):
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user, asset, error = verify_user_ownership(user_id, asset_id)
     
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    
-    asset = Asset.query.filter_by(id=asset_id, user_id=user.id).first()
-    
-    if not asset:
-        return jsonify({"error": "Asset not found or not owned by user"}), 404
+    if error:
+        return error
     
     db.session.delete(asset)
     db.session.commit()
+    
+    logger.info(f"User {user.id} deleted asset {asset.id}")
     
     return jsonify({
         "success": True,
@@ -131,10 +164,10 @@ def delete_asset(asset_id):
 @jwt_required()
 def get_summary():
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user, _, error = verify_user_ownership(user_id)
     
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    if error:
+        return error
     
     assets = Asset.query.filter_by(user_id=user.id).all()
     
