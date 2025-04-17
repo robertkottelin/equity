@@ -77,6 +77,7 @@ def add_asset():
     asset = Asset(
         user_id=user.id,
         sector_type=data.get('sectorType'),
+        sub_sector=convert_empty_to_none(data.get('subSector')),  # Handle new sub-sector field
         name=data.get('name'),
         price=data.get('price'),
         acquisition_price=data.get('acquisitionPrice'),
@@ -119,6 +120,7 @@ def update_asset(asset_id):
     
     # Update asset fields
     asset.sector_type = data.get('sectorType', asset.sector_type)
+    asset.sub_sector = convert_empty_to_none(data.get('subSector', asset.sub_sector))  # Handle sub-sector updates
     asset.name = data.get('name', asset.name)
     asset.price = data.get('price', asset.price)
     asset.acquisition_price = data.get('acquisitionPrice', asset.acquisition_price)

@@ -30,6 +30,7 @@ const AssetTable = ({ assets, onEdit, onDelete, isSubscribed }) => {
           <thead>
             <tr>
               <th>Sector Type</th>
+              <th>Sub-Sector</th> {/* New column for sub-sector */}
               <th>Name</th>
               <th>Price</th>
               <th>Acquisition Price</th>
@@ -49,6 +50,7 @@ const AssetTable = ({ assets, onEdit, onDelete, isSubscribed }) => {
             {assets.map((asset, index) => (
               <tr key={index} className={isSubscribed ? "premium-row" : ""}>
                 <td>{asset.sectorType}</td>
+                <td>{asset.subSector || 'N/A'}</td> {/* Display sub-sector with fallback */}
                 <td>{asset.name}</td>
                 <td>{formatCurrency(asset.price)}</td>
                 <td>{formatCurrency(asset.acquisitionPrice)}</td>

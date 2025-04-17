@@ -6,6 +6,7 @@ class Asset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     sector_type = db.Column(db.String(50), nullable=False)
+    sub_sector = db.Column(db.String(100), nullable=True)  # New field for sub-sector classification
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Float, nullable=False)
     acquisition_price = db.Column(db.Float, nullable=False)
@@ -28,6 +29,7 @@ class Asset(db.Model):
         return {
             'id': self.id,
             'sectorType': self.sector_type,
+            'subSector': self.sub_sector,  # Include sub-sector in API responses
             'name': self.name,
             'price': self.price,
             'acquisitionPrice': self.acquisition_price,

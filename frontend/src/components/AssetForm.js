@@ -4,6 +4,7 @@ import './AssetForm.css';
 const AssetForm = ({ onAddAsset, onCancel, editingAsset }) => {
   const initialFormState = {
     sectorType: 'equity',
+    subSector: '',  // New sub-sector field initialized as empty string
     name: '',
     price: 0,
     acquisitionPrice: 0,
@@ -16,6 +17,14 @@ const AssetForm = ({ onAddAsset, onCancel, editingAsset }) => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  
+  // Sub-sector suggestions based on sector type selection
+  const subSectorSuggestions = {
+    equity: ['Technology', 'Healthcare', 'Consumer Goods', 'Financial Services', 'Energy', 'Telecommunications', 'Utilities', 'Real Estate', 'Industrial', 'Materials'],
+    fund: ['Index Fund', 'ETF', 'Mutual Fund', 'Bond Fund', 'Money Market', 'REIT', 'Sector Fund', 'International Fund', 'Balanced Fund', 'Dividend Fund'],
+    cash: ['Savings', 'Checking', 'Certificate of Deposit', 'Money Market Account', 'Treasury Bills', 'Currency'],
+    others: ['Commodities', 'Cryptocurrency', 'Derivatives', 'Private Equity', 'Collectibles', 'Precious Metals', 'Options', 'Futures']
+  };
 
   // If editing an existing asset, populate the form with its data
   useEffect(() => {
@@ -103,6 +112,25 @@ const AssetForm = ({ onAddAsset, onCancel, editingAsset }) => {
               <option value="cash">Cash</option>
               <option value="others">Others</option>
             </select>
+          </div>
+          
+          {/* New Sub-Sector Field */}
+          <div className="form-group">
+            <label htmlFor="subSector">Sub-Sector (Optional):</label>
+            <input
+              type="text"
+              list="subSectorSuggestions"
+              id="subSector"
+              name="subSector"
+              value={formData.subSector || ''}
+              onChange={handleChange}
+              placeholder="e.g., Technology, Healthcare"
+            />
+            <datalist id="subSectorSuggestions">
+              {subSectorSuggestions[formData.sectorType]?.map((suggestion, index) => (
+                <option key={index} value={suggestion} />
+              ))}
+            </datalist>
           </div>
 
           <div className="form-group">
